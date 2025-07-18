@@ -1,1 +1,68 @@
-#matteo
+# lower_bound/lower_bound.py
+
+import heapq
+from typing import List
+
+# Import the shared Job definition
+from branch_and_bound.job import Job
+
+def compute_lb(jobs: List[Job]) -> int:
+    """
+    Compute the lower bound for 1|r_j|∑U_j via preemptive EDF.
+    Returns the minimum number of tardy jobs.
+    """
+    # 1) Sort jobs by release time
+    jobs_by_release = sorted(jobs, key=lambda job: job.r)
+    
+    # 2) Prepare a min-heap for active jobs (keyed by due date)
+    #    Each entry: [due_date, remaining_time, job_id]
+    active_heap = []
+    
+    # 3) Initialize time 't' and index into release list
+    t = jobs_by_release[0].r if jobs_by_release else 0
+    idx = 0
+    tardy_count = 0
+    
+    # 4) Main simulation loop
+    while idx < len(jobs_by_release) or active_heap:
+        # 4a) Release new jobs
+        while idx < len(jobs_by_release) and jobs_by_release[idx].r <= t:
+            job = jobs_by_release[idx]
+            heapq.heappush(active_heap, [job.d, job.p, job.id])
+            idx += 1
+        
+        # 4b) If no active job, jump to next release
+        if not active_heap:
+            t = jobs_by_release[idx].r
+            continue
+        
+        # 4c) Pop the job with earliest due date
+        due_date, rem_time, job_id = heapq.heappop(active_heap)
+        
+        # 4d) Determine next event (completion or next release)
+        next_release = jobs_by_release[idx].r if idx < len(jobs_by_release) else float('inf')
+        run_time = min(rem_time, next_release - t)
+        
+        # 4e) Advance time and update remaining
+        t += run_time
+        rem_time -= run_time
+        
+        # 4f) Check completion
+        if rem_time == 0:
+            if t > due_date:
+                tardy_count += 1
+        else:
+            # Reinsert with updated remaining time
+            heapq.heappush(active_heap, [due_date, rem_time, job_id])
+    
+    return tardy_count
+
+# If run as a script, simple test
+if __name__ == "__main__":
+    from branch_and_bound.job import Job
+    jobs = [
+        Job(id=1, r=0, p=3, d=5),
+        Job(id=2, r=1, p=2, d=4),
+        Job(id=3, r=2, p=1, d=3),
+    ]
+    print("Lower bound (min tardy):", compute_lb(jobs))
