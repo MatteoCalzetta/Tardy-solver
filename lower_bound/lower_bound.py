@@ -59,13 +59,3 @@ def compute_lb(jobs: List[Job]) -> int:
             heapq.heappush(active_heap, [due_date, rem_time, job_id])
     
     return tardy_count
-
-# If run as a script, simple test
-if __name__ == "__main__":
-    from branch_and_bound.job import Job
-    jobs = [
-        Job(id=1, r=0, p=3, d=5),
-        Job(id=2, r=1, p=2, d=4),
-        Job(id=3, r=2, p=1, d=3),
-    ]
-    print("Lower bound (min tardy):", compute_lb(jobs))

@@ -6,9 +6,11 @@ from util import is_on_time_schedulable, select_job
 
 # Esempio di job
 jobs = [
-    Job(1, 0, 3, 5),
-    Job(2, 1, 2, 6),
-    Job(3, 2, 1, 4),
+    Job(1, 0, 4, 3),
+    Job(2, 0, 3, 2),
+    Job(3, 2, 1, 6),
+    Job(4, 3, 2, 8),
+    Job(5, 5, 1, 7),
 ]
 
 root = Node()
