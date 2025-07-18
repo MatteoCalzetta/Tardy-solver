@@ -9,6 +9,19 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Import the shared Job definition
 from branch_and_bound.job import Job
 
+def compute_lb_knapsack(jobs: List[Job]):
+    n = len(jobs)
+    H = max(job.d for job in jobs)       # orizzonte massimo
+    # dp[c] = massimo numero di job on‐time usabili con cap. c
+    dp = [0] * (H + 1)
+    for job in jobs:
+        w = job.p
+        # itero a ritroso per evitare riuso multiplo
+        for c in range(H, w - 1, -1):
+            dp[c] = max(dp[c], dp[c - w] + 1)
+    K_star = max(dp)
+    return n - K_star
+
 def compute_lb(jobs: List[Job]) -> int:
     """
     Compute the lower bound for 1|r_j|∑U_j via preemptive EDF.
