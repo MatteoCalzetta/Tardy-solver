@@ -15,6 +15,10 @@ class Node:
         jobs_minus_T = [j for j in jobs if j.id not in self.T]
         self.lb = LB.compute_lb(jobs_minus_T)
 
+    def compute_lb_KP(self, jobs):
+        jobs_minus_T = [j for j in jobs if j.id not in self.T]
+        self.lb = LB.compute_lb_knapsack(jobs_minus_T)
+
     def is_feasible_leaf(self, jobs, is_on_time_schedulable):
         if self.lb != 0:
             return False

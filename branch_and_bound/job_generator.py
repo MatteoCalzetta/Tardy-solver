@@ -15,7 +15,7 @@ class JobGenerator:
         if seed is not None:
             random.seed(seed)
 
-    def generate(self, n_jobs, r_range=(0, 10), p_range=(1, 5), tight_due_dates=True):
+    def generate(self, n_jobs, r_range=(0, 100), p_range=(1, 5), tight_due_dates=True):
         jobs = []
         for i in range(1, n_jobs + 1):
             r = random.randint(*r_range)
