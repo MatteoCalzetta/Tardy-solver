@@ -8,6 +8,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Import the shared Job definition
 from branch_and_bound.job import Job
+from branch_and_bound.job_generator import JobGenerator
 
 def compute_lb(jobs: List[Job]) -> int:
     """
