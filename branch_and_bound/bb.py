@@ -1,6 +1,5 @@
 import time
-from branch_and_bound.nodeOG import Node
-import lower_bound  # modulo di Matteo
+from node import Node
 from typing import List, Set
 from bbStats import BnBStats
 
