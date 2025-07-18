@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from job import Job
 from node import Node
 from bb import branch_and_bound, get_best_solution, stats
