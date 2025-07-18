@@ -1,0 +1,73 @@
+Implementare in Python il cuore del B&B “combinatorio”: struttura del nodo, branching, fathoming, integrazione con il lower–bound preemptive.
+
+1. Definizione della classe Node
+Attributi principali
+
+T: insieme (o lista) dei job fissati come tardy
+
+S: insieme dei job fissati come on-time
+
+lb: valore del lower bound calcolato su J \ T
+
+depth (opzionale): livello nell’albero, per statistiche
+
+Metodi:
+
+compute_lb(self): chiama compute_lb(jobs_minus_T) del modulo LB e memorizza in self.lb
+
+is_feasible_leaf(self): verifica se con LB=0 tutti i job in J \ T possono essere schedulati on-time (ossia lb==0 e S ∪ (J\T) non genera tardy)
+
+2. Funzione branch_and_bound(node)
+Implementa la ricorsione:
+
+python
+Copia
+Modifica
+def branch_and_bound(node):
+    # 1) Calcola lb
+    node.compute_lb()
+    if node.lb >= best_int:      # fathoming per bound
+        return
+    if node.is_feasible_leaf():  # fathoming per soluzione intera
+        best_int = len(node.T)
+        best_sol = node.T.copy()
+        return
+    # 2) Scegli job k ∉ T∪S per branching
+    k = select_job(node)        # criterio: per esempio quello più “critico”
+    # 3) Branch “k tardy”
+    child1 = Node(T=node.T∪{k}, S=node.S)
+    branch_and_bound(child1)
+    # 4) Branch “k on-time”
+    child2 = Node(T=node.T, S=node.S∪{k})
+    branch_and_bound(child2)
+Selezione di k
+– può essere il job con minimo slack (d_j - (r_j + p_j))
+– o uno con più alto impatto sul LB
+
+Ordinamento dei nodi
+– Prova prima “on-time” (rischio maggiore di trovare subito soluzione buona)
+– Oppure usa best‐first su lb + |T|
+
+Per ogni foglia dell'albero chiamo il modulo di matteo per sapere il lb è il peggiore e lo confronto col padre.
+Il problema ce lho se scendendo il lb diminuisce.
+essendo problema di massimo
+
+3. Gestione dello stato globale
+best_int: variabile globale (o in un oggetto manager) per il miglior numero di tardy trovato
+
+best_sol: insieme di job tardy della migliore soluzione
+
+4. Raccolta statistiche
+Per ogni chiamata, registra:
+
+-numero di nodi generati
+
+-profondità media
+
+-tempo speso in compute_lb
+
+-numero di fathomings per LB vs per leaf
+- definisco insiemi dove calcolare il lower bound
+- decisione albero struttura dati.
+- Comincia il mio modulo e una volta entrato nel figlio, devo capire se proseguire o meno
+
