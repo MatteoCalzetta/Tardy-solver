@@ -15,7 +15,7 @@ def main():
         return
 
     generator = JobGenerator(seed=42)
-    jobs = generator.generate(n_jobs=n, tight_due_dates=True)
+    jobs = generator.generate(n_jobs=n, tight_due_dates=False)
 
     print("\n== JOB GENERATI ==")
     for job in jobs:

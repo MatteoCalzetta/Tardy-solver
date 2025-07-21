@@ -21,8 +21,11 @@ class JobGenerator:
             r = random.randint(*r_range)
             p = random.randint(*p_range)
             if tight_due_dates:
-                d = r + p + random.randint(0, 3)  # scadenze strette
+                # Scadenze moderate: un po' più di slack ma non troppo
+                slack = random.randint(1, max(3, p))  # slack proporzionale al processing time
+                d = r + p + slack
             else:
-                d = r + p + random.randint(5, 15)  # scadenze larghe
+                # Scadenze larghe
+                d = r + p + random.randint(5, 15)
             jobs.append(Job(i, r, p, d))
         return jobs
