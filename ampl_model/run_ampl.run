@@ -1,0 +1,11 @@
+reset;
+model "/home/giulia/Documenti/AMOD_project/AMPL_code/model.mod"; 
+data "/home/giulia/Documenti/AMOD_project/AMPL_code/instance.dat";
+
+option solver gurobi;
+
+solve;
+
+display x;
+display U;
+												
