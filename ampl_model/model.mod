@@ -1,11 +1,11 @@
 # Variabili 
-	param n integer >0; # jobs 
+param n integer >0; # jobs 
 set JOBS := 1..n;
 param r {JOBS} >= 0; # release date
 param p {JOBS} >= 0; # durata del job 
 param d {JOBS} >= 0; # due date 
 
-param H = max {j in JOBS}(r[j]+ p[j]); # upper bound al tempo di completameto
+param H = max {j in JOBS} max(r[j]+ p[j], d[j]); # upper bound al tempo di completameto
 
 var x {JOBS, 0..H} binary; # time‐indexed: x[j,t]=1 se job j finisce al tempo t
 
