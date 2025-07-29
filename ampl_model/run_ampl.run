@@ -5,4 +5,5 @@ option solver "/home/giulia/Documenti/AMOD_project/ampl.linux-intel64/gurobi";
 solve;
 display x;
 display U;
-									
+display {j in JOBS, t in 0..H: x[j,t] > 0.5} x[j,t];
+display d;

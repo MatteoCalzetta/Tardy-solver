@@ -5,7 +5,10 @@ param r {JOBS} >= 0; # release date
 param p {JOBS} >= 0; # durata del job 
 param d {JOBS} >= 0; # due date 
 
-param H = max {j in JOBS} max(r[j]+ p[j], d[j]); # upper bound al tempo di completameto
+param H := max {j in JOBS} (r[j]) + sum {j in JOBS} p[j];
+
+
+#param H = max {j in JOBS} max(r[j]+ p[j]); # upper bound al tempo di completameto
 
 var x {JOBS, 0..H} binary; # time‐indexed: x[j,t]=1 se job j finisce al tempo t
 
@@ -24,6 +27,11 @@ ReleaseTime {j in JOBS, t in 0..H: t < r[j] + p[j]}:
 # definizione tardy:
 TardyDef {j in JOBS}:
     sum {t in 0..d[j]} x[j,t] + U[j] = 1;
+
+# Capacità macchina: nessun overlapping
+CapacityConstraint {t in 0..H}:
+    sum {j in JOBS: t - p[j] + 1 >= 0} x[j, t] <= 1;
+
 
 # Funzione Obiettivo
 minimize TotalTardy: sum {j in JOBS} U[j];
