@@ -5,11 +5,15 @@ param r {JOBS} >= 0; # release date
 param p {JOBS} >= 0; # durata del job 
 param d {JOBS} >= 0; # due date 
 
-param H = max {j in JOBS}(r[j]+ p[j]); # upper bound al tempo di completameto
+#param H = max {j in JOBS}(r[j]+ p[j]); # upper bound al tempo di completameto
+param H >= 0; # upper bound al tempo di completamento, lo settiamo da Python
 
-var x {JOBS, 0..H} binary; # time‐indexed: x[j,t]=1 se job j finisce al tempo t
+var x {j in JOBS, t in 0..H} binary;
 
-var U {JOBS} binary;  # U[j]=1 se j è tardy 
+
+#var x {JOBS, 0..H} binary; # time‐indexed: x[j,t]=1 se job j finisce al tempo t
+
+var U {j in JOBS} binary;  # U[j]=1 se j è tardy 
 
 
 # Vincoli 
