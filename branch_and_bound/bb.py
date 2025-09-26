@@ -47,11 +47,11 @@ def branch_and_bound(node: Node,
                      is_on_time_schedulable,
                      select_job):
     """
-    Ricorsione Branch & Bound per 1|r_j|sum U_j con bound preemptive e knapsack.
+    Ricorsione Branch & Bound per 1|r_j|sum U_j con bound preemptive + knapsack.
     """
     global best_int, best_sol, stats
 
-    # Inizializza best_int al primo nodo se non fatto
+    # Inizializza best_int al primo nodo se non impostato
     if best_int is None:
         best_int = heuristic_upper_bound(jobs)
 
@@ -59,22 +59,34 @@ def branch_and_bound(node: Node,
     stats.nodi_generati += 1
     stats.profondità_totale += node.depth
 
-    # 2) Filtra i job ancora in gioco
+    # 2) Job ancora da decidere
     decided_jobs = node.T.union(node.S)
     jobs_remain = [job for job in jobs if job.id not in decided_jobs]
 
-    # 3) Calcola lower bound preemptive (EDF)
+    # 2a) Pruning rapido: l'insieme S (già forzato on-time) deve essere schedulabile
+    S_jobs = [j for j in jobs if j.id in node.S]
+    if S_jobs and not is_on_time_schedulable(S_jobs):
+        stats.fathom_leaf += 1
+        return
+
+    # 3) Lower bound
     start = time.time()
-    node.compute_lb(jobs_remain)
+    if not jobs_remain:
+        node.lb = 0
+        stats.tempo_totale_lb += time.time() - start
+        stats.chiamate_lb += 1
+    else:
+        node.compute_lb(jobs_remain)
 
-    # 3a) Calcola anche bound knapsack se opportuno
-    H = max((job.d for job in jobs_remain), default=0)
-    if len(jobs_remain) <= KP_N_MAX or H <= KP_H_MAX:
-        lb_kp = compute_lb_knapsack(jobs_remain)
-        node.lb = max(node.lb, lb_kp)
+        # 3a) Knapsack LB se conviene
+        H = max((job.d for job in jobs_remain), default=0)
+        if len(jobs_remain) <= KP_N_MAX or H <= KP_H_MAX:
+            lb_kp = compute_lb_knapsack(jobs_remain)
+            if lb_kp is not None:
+                node.lb = max(node.lb, lb_kp)
 
-    stats.tempo_totale_lb += time.time() - start
-    stats.chiamate_lb += 1
+        stats.tempo_totale_lb += time.time() - start
+        stats.chiamate_lb += 1
 
     # 4) Pruning: bound totale
     total_bound = len(node.T) + node.lb
@@ -82,15 +94,15 @@ def branch_and_bound(node: Node,
         stats.fathom_lb += 1
         return
 
-    # 5) Early-stop radice
+    # 5) Early-stop in radice quando LB=0 (tutto on-time è possibile)
     if node.depth == 0 and node.lb == 0:
         stats.fathom_leaf += 1
         best_int = 0
         best_sol = set()
         return
 
-    # 6) Foglia ammissibile
-    if node.is_feasible_leaf(jobs_remain, is_on_time_schedulable):
+    # 6) Foglia ammissibile — usa TUTTI i job (non solo jobs_remain!)
+    if node.is_feasible_leaf(jobs, is_on_time_schedulable):
         stats.fathom_leaf += 1
         tardy_count = len(node.T)
         if tardy_count < best_int:
@@ -98,7 +110,7 @@ def branch_and_bound(node: Node,
             best_sol = node.T.copy()
         return
 
-    # 7) Selezione job per branching
+    # 7) Scelta del job per il branching
     k = select_job(node, jobs_remain)
     if k is None:
         return
@@ -106,6 +118,10 @@ def branch_and_bound(node: Node,
     # 8) Branch 'on-time'
     child_ontime = Node(T=node.T.copy(), S=node.S.union({k}), depth=node.depth + 1)
     branch_and_bound(child_ontime, jobs, is_on_time_schedulable, select_job)
+
+    # 8b) Skip intelligente: se abbiamo già raggiunto |T|, il ramo tardy non può migliorare
+    if best_int == len(node.T):
+        return
 
     # 9) Branch 'tardy'
     child_tardy = Node(T=node.T.union({k}), S=node.S.copy(), depth=node.depth + 1)

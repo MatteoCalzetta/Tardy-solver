@@ -2,21 +2,124 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from typing import List, Tuple
+
 from job_generator import JobGenerator
 from node import Node
 from bb import branch_and_bound, get_best_solution, stats
 from util import is_on_time_schedulable, select_job
 
-def main():
+# ----------------- utility I/O sicure -----------------
+def read_int(prompt: str, default: int = None, min_val: int = None) -> int:
+    s = input(prompt).strip()
+    if s == "" and default is not None:
+        return default
     try:
-        n = int(input("Quanti job vuoi generare? "))
-    except ValueError:
-        print("Input non valido. Inserisci un intero.")
-        return
+        v = int(s)
+        if min_val is not None and v < min_val:
+            print(f"Valore troppo piccolo, uso {min_val}.")
+            return min_val
+        return v
+    except Exception:
+        if default is not None:
+            print(f"Input non valido, uso default {default}.")
+            return default
+        raise
+
+def read_float(prompt: str, default: float = None, min_val: float = None) -> float:
+    s = input(prompt).strip()
+    if s == "" and default is not None:
+        return default
+    try:
+        v = float(s)
+        if min_val is not None and v < min_val:
+            print(f"Valore troppo piccolo, uso {min_val}.")
+            return min_val
+        return v
+    except Exception:
+        if default is not None:
+            print(f"Input non valido, uso default {default}.")
+            return default
+        raise
+# ------------------------------------------------------
+
+def main():
+    print("== Generazione Job ==")
+    print("Modalità:")
+    print("  1) tight  (scadenze strette: ritardi probabili)")
+    print("  2) wide   (scadenze larghe: pochi ritardi)")
+    print("  3) mix    (misto 70% tight, 30% wide)")
+    print("  4) overloaded (blocchi sovraccarichi: ritardi garantiti)")
+
+    choice = input("Seleziona [1-4] (default 1): ").strip() or "1"
 
     generator = JobGenerator(seed=42)
-    jobs = generator.generate(n_jobs=n, tight_due_dates=False)
 
+    if choice == "4":
+        # Modalità con ritardi garantiti
+        print("\n== Modalità OVERLOADED (ritardi garantiti) ==")
+        # numero desiderato (solo per aggiungere eventuali extra fuori blocco)
+        n_target = read_int("Quanti job totali desideri circa? (default 20): ", default=20, min_val=1)
+
+        num_blocks = read_int("Quanti blocchi sovraccarichi? (default 1): ", default=1, min_val=1)
+        blocks: List[Tuple[int, int, float]] = []
+        for b in range(num_blocks):
+            default_start = b * 30
+            start = read_int(f" Blocco {b+1} - start (default {default_start}): ", default=default_start)
+            length = read_int(f" Blocco {b+1} - length (default 20): ", default=20, min_val=1)
+            overload = read_float(f" Blocco {b+1} - overload > 1 (default 1.3): ", default=1.3, min_val=1.0001)
+            blocks.append((start, length, overload))
+
+        block_jobs = generator.generate_overloaded_blocks(
+            blocks=blocks,
+            p_range=(1, 5),
+            release_spread=0.4,
+            extra_jobs=0,  # li aggiungiamo dopo per controllare la quantità totale
+        )
+
+        if len(block_jobs) >= n_target:
+            print(f"\n[Nota] I job di blocco ({len(block_jobs)}) superano il target richiesto ({n_target}).")
+            print("       Mantengo tutti i job di blocco per **preservare** il sovraccarico e i ritardi garantiti.")
+            jobs = block_jobs  # garantiamo i ritardi
+        else:
+            # completiamo fino a n_target con job “larghi” fuori blocco
+            extras_needed = n_target - len(block_jobs)
+            extra_jobs = generator.generate(
+                n_jobs=extras_needed,
+                r_range=(0, 100),
+                p_range=(1, 5),
+                tightness=1.5,
+                mode="wide",
+            )
+            jobs = block_jobs + extra_jobs
+
+    else:
+        # Modalità probabilistiche (non garantiscono ritardi, ma sono flessibili)
+        n = read_int("\nQuanti job vuoi generare? ", default=20, min_val=1)
+        r_min = read_int("Intervallo r: min (default 0): ", default=0)
+        r_max = read_int("Intervallo r: max (default 100): ", default=100, min_val=r_min)
+        p_min = read_int("Intervallo p: min (default 1): ", default=1, min_val=1)
+        p_max = read_int("Intervallo p: max (default 5): ", default=5, min_val=p_min)
+
+        if choice == "2":
+            mode = "wide"
+            tightness = 0.5
+        elif choice == "3":
+            mode = "mix"
+            tightness = 0.2
+        else:
+            mode = "tight"
+            tightness = read_float("Tightness ∈ [0..1+] (default 0.2): ", default=0.2, min_val=0.0)
+
+        jobs = generator.generate(
+            n_jobs=n,
+            r_range=(r_min, r_max),
+            p_range=(p_min, p_max),
+            tightness=tightness,
+            mode=mode,
+        )
+
+    # ---------- stampa, solve, stats ----------
     print("\n== JOB GENERATI ==")
     for job in jobs:
         print(job)
@@ -29,6 +132,7 @@ def main():
     print(f"Best tardy set: {sorted(best_sol)}\n")
 
     stats.print_summary(best_int, best_sol)
+
 
 if __name__ == "__main__":
     main()
