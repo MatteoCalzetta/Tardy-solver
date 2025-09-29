@@ -10,8 +10,8 @@ from amplpy import AMPL, add_to_path
 
 add_to_path(r"/Users/giuliaboccuccia/Documents/AMOD/AMPL")
 
-# === Scegli modalità: "bb" per branch-and-bound, "ampl" per solver AMPL ===
-MODE = "ampl"  # cambiare in "bb" se vuoi usare branch-and-bound
+# === Scegli modalità: "bb" per branch-and-bound, "ampl" per solver AMPL ===#
+#MODE = "ampl"  # cambiare in "bb" se vuoi usare branch-and-bound
 
 # Esempio di job
 jobs = [
@@ -22,7 +22,7 @@ jobs = [
     Job(5, 5, 1, 7),
 ]
 
-if MODE == "bb":
+def run_bb():
     print("=== Risoluzione con Branch-and-Bound ===")
     root = Node()
     branch_and_bound(root, jobs, is_on_time_schedulable, select_job)
@@ -32,9 +32,8 @@ if MODE == "bb":
     print(f"Best tardy set: {sorted(best_sol)}\n")
     stats.print_summary(best_int, best_sol)
 
-elif MODE == "ampl":
+def run_ampl():
     print("=== Risoluzione con AMPL ===")
-
     # --- AMPL ---
     ampl = AMPL()
     ampl.read("/Users/giuliaboccuccia/Documents/AMOD/Tardy-solver/ampl_model/model.mod")  # il file del tuo modello AMPL
@@ -66,5 +65,23 @@ elif MODE == "ampl":
     for j in range(1, n + 1):
         print(f"Job {j} tardy:", int(U[j].value()))
 
-else:
-    print("Modalità non riconosciuta. Usa 'bb' o 'ampl'.")
+switch = {
+    "bb": run_bb, 
+    "ampl": run_ampl
+}
+while True:
+    print("\nSeleziona modalità di risoluzione:")
+    print("  bb   -> Branch-and-Bound")
+    print("  ampl -> AMPL Solver")
+    print("  exit -> Esci")
+    MODE = input("Modalità: ").strip().lower()
+
+    if MODE == "exit":
+        print("Uscita dal programma.")
+        break
+
+    func = switch.get(MODE, None)
+    if func:
+        func()
+    else:
+        print("Modalità non riconosciuta. Usa 'bb', 'ampl' o 'exit'.")
