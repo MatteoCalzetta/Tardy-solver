@@ -3,7 +3,7 @@ reset;
 option solver gurobi;
 
 model "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod";
-data "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/instance.dat";
+data "instance.dat";
 
 solve;
 

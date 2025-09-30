@@ -1,13 +1,22 @@
+import re
 import sys
 import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
+import subprocess
 from typing import List, Tuple
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from job_generator import JobGenerator
 from node import Node
 from bb import branch_and_bound, get_best_solution, stats
 from util import is_on_time_schedulable, select_job
+
+
+
+# r: release date
+# p: processing time
+# d: due date
+
 
 # ----------------- utility I/O sicure -----------------
 def read_int(prompt: str, default: int = None, min_val: int = None) -> int:
@@ -43,6 +52,113 @@ def read_float(prompt: str, default: float = None, min_val: float = None) -> flo
         raise
 # ------------------------------------------------------
 
+# ---------- Funzione per esportare jobs in formato AMPL ----------
+#"/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/instance.dat"
+def export_to_ampl_dat(jobs, filename="instance.dat"):
+    n = len(jobs)
+    total_p = sum(job.p for job in jobs)
+    H = max(job.r for job in jobs) + total_p  # Upper bound corretto
+
+    with open(filename, "w") as f:
+        f.write(f"param n := {n};\n")
+        f.write(f"param H := {H};\n\n")
+
+        # release dates
+        f.write("param r :=\n")
+        for i, job in enumerate(jobs, start=1):
+            f.write(f"  {i} {job.r}\n")
+        f.write(";\n\n")
+
+        # processing times
+        f.write("param p :=\n")
+        for i, job in enumerate(jobs, start=1):
+            f.write(f"  {i} {job.p}\n")
+        f.write(";\n\n")
+
+        # due dates
+        f.write("param d :=\n")
+        for i, job in enumerate(jobs, start=1):
+            f.write(f"  {i} {job.d}\n")
+        f.write(";\n")
+
+    print(f"✅ File '{filename}' esportato per AMPL con H={H}.")
+
+
+# ---------- Funzione per eseguire AMPL ----------
+#"/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod"
+#"/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/instance.dat"
+
+def run_ampl(model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
+             #
+             # "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/instance.dat"
+             data_file="instance.dat",
+             solver="gurobi"):
+
+    ampl_exe = "/home/giulia/Documenti/AMOD_project/ampl.linux-intel64/ampl"
+    #"/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/run_ampl.run"
+    run_file = "run_ampl.run"
+
+    ampl_script = f"""
+reset;
+option solver {solver};
+
+model "{model_file}";
+data "{data_file}";
+
+solve;
+
+print "===================================";
+print " RISULTATI AMPL";
+print "===================================";
+
+# Mostra stato di risoluzione e valore ottimo
+display sum{{j in JOBS}} U[j];
+
+print "---- Job tardivi (U[j]) ----";
+display U;
+
+print "---- Job completati (x[j,t]=1) ----";
+for {{j in JOBS, t in 0..H: x[j,t] > 0.5}} {{
+    printf "Job %d termina a t=%d\\n", j, t;
+}}
+
+"""
+
+    with open(run_file, "w") as f:
+        f.write(ampl_script)
+
+    try:
+        result = subprocess.run(
+            [ampl_exe, run_file],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+    except FileNotFoundError:
+        print(f"Eseguibile AMPL non trovato: {ampl_exe}")
+        return None
+    except subprocess.CalledProcessError as e:
+        print("Errore durante l'esecuzione AMPL:")
+        print(e.stderr)
+        return None
+
+    print("\n===== OUTPUT COMPLETO AMPL =====")
+    print(result.stdout)
+    print("==================================\n")
+
+    # Estrai risultato totale tardy
+    match = re.search(r"sum\{j in JOBS\} U\[j\]\s*=\s*([0-9]+)", result.stdout)
+    if match:
+        tardy_count = int(match.group(1))
+        print(f"Risultato AMPL ({solver}): {tardy_count}")
+        return tardy_count
+    else:
+        print("Impossibile leggere il risultato AMPL:")
+        print(result.stdout)
+        return None
+
+
+# ---------------- MAIN ----------------
 def main():
     print("== Generazione Job ==")
     print("Modalità:")
@@ -55,12 +171,9 @@ def main():
 
     generator = JobGenerator(seed=42)
 
+    # ---------------- Generazione job ----------------
     if choice == "4":
-        # Modalità con ritardi garantiti
-        print("\n== Modalità OVERLOADED (ritardi garantiti) ==")
-        # numero desiderato (solo per aggiungere eventuali extra fuori blocco)
         n_target = read_int("Quanti job totali desideri circa? (default 20): ", default=20, min_val=1)
-
         num_blocks = read_int("Quanti blocchi sovraccarichi? (default 1): ", default=1, min_val=1)
         blocks: List[Tuple[int, int, float]] = []
         for b in range(num_blocks):
@@ -74,15 +187,12 @@ def main():
             blocks=blocks,
             p_range=(1, 5),
             release_spread=0.4,
-            extra_jobs=0,  # li aggiungiamo dopo per controllare la quantità totale
+            extra_jobs=0,
         )
 
         if len(block_jobs) >= n_target:
-            print(f"\n[Nota] I job di blocco ({len(block_jobs)}) superano il target richiesto ({n_target}).")
-            print("       Mantengo tutti i job di blocco per **preservare** il sovraccarico e i ritardi garantiti.")
-            jobs = block_jobs  # garantiamo i ritardi
+            jobs = block_jobs
         else:
-            # completiamo fino a n_target con job “larghi” fuori blocco
             extras_needed = n_target - len(block_jobs)
             extra_jobs = generator.generate(
                 n_jobs=extras_needed,
@@ -92,9 +202,7 @@ def main():
                 mode="wide",
             )
             jobs = block_jobs + extra_jobs
-
     else:
-        # Modalità probabilistiche (non garantiscono ritardi, ma sono flessibili)
         n = read_int("\nQuanti job vuoi generare? ", default=20, min_val=1)
         r_min = read_int("Intervallo r: min (default 0): ", default=0)
         r_max = read_int("Intervallo r: max (default 100): ", default=100, min_val=r_min)
@@ -119,7 +227,7 @@ def main():
             mode=mode,
         )
 
-    # ---------- stampa, solve, stats ----------
+    # ---------------- Stampa e Branch & Bound ----------------
     print("\n== JOB GENERATI ==")
     for job in jobs:
         print(job)
@@ -130,9 +238,22 @@ def main():
     best_int, best_sol = get_best_solution()
     print(f"\nBest tardy count: {best_int}")
     print(f"Best tardy set: {sorted(best_sol)}\n")
-
     stats.print_summary(best_int, best_sol)
 
+    # ---------------- Risoluzione AMPL ----------------
+    export_to_ampl_dat(jobs)
+
+    ampl_tardy = run_ampl(
+       # 
+        model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
+       # "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/instance.dat"
+        data_file="instance.dat",
+        solver="gurobi"
+    )
+
+    if ampl_tardy is not None:
+        print(f"\n Risultato AMPL (Gurobi): {ampl_tardy}")
+        print(f" Risultato Branch & Bound: {best_int}")
 
 if __name__ == "__main__":
     main()
