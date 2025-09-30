@@ -8,9 +8,8 @@ from lower_bound.lower_bound import compute_lb_knapsack
 KP_N_MAX = 50       # max numero di job per invocarlo
 KP_H_MAX = 500      # max valore di H=max(d_j) per invocarlo
 
-# Stato globale: best_int inizializzato via euristica
 best_int: int = None
-best_sol: Set[int] = set()
+best_solutions: List[Set[int]] = []
 
 # Statistiche
 stats = BnBStats()
@@ -34,11 +33,11 @@ def heuristic_upper_bound(jobs: List) -> Tuple[int, Set[int]]:
 
 def reset(jobs: List):
     """
-    Inizializza sia il valore che il set della migliore soluzione
-    usando l’euristica, e azzera le statistiche.
+    Inizializza best_int e la lista delle soluzioni ottime, azzera le statistiche.
     """
-    global best_int, best_sol, stats
-    best_int, best_sol = heuristic_upper_bound(jobs)
+    global best_int, best_solutions, stats
+    best_int, first_sol = heuristic_upper_bound(jobs)
+    best_solutions = [first_sol] if first_sol else []
     stats.reset()
 
 def branch_and_bound(node: Node,
@@ -50,11 +49,12 @@ def branch_and_bound(node: Node,
     Inizializza SEMPRE anche il set dalla euristica, così
     se fai prune a radice (LB==UB) hai già T best.
     """
-    global best_int, best_sol, stats
+    global best_int, best_solutions, stats
 
     # Inizializza UB + set alla prima chiamata
     if best_int is None:
-        best_int, best_sol = heuristic_upper_bound(jobs)
+        best_int, first_sol = heuristic_upper_bound(jobs)
+        best_solutions = [first_sol] if first_sol else []
 
     # 1) Statistiche nodo
     stats.nodi_generati += 1
@@ -88,7 +88,7 @@ def branch_and_bound(node: Node,
 
     # 4) Pruning: bound totale
     total_bound = len(node.T) + node.lb
-    if total_bound >= best_int:
+    if total_bound > best_int:
         stats.fathom_lb += 1
         return
 
@@ -96,7 +96,7 @@ def branch_and_bound(node: Node,
     if node.depth == 0 and node.lb == 0:
         stats.fathom_leaf += 1
         best_int = 0
-        best_sol = set()
+        best_solutions = [set()]
         return
 
     # 6) Foglia ammissibile (usa TUTTI i job, non solo i rimanenti)
@@ -105,7 +105,11 @@ def branch_and_bound(node: Node,
         tardy_count = len(node.T)
         if tardy_count < best_int:
             best_int = tardy_count
-            best_sol = node.T.copy()
+            best_solutions = [node.T.copy()]
+        elif tardy_count == best_int:
+            # Evita duplicati
+            if node.T.copy() not in best_solutions:
+                best_solutions.append(node.T.copy())
         return
 
     # 7) Selezione job per branching
@@ -124,6 +128,6 @@ def branch_and_bound(node: Node,
 
 def get_best_solution():
     """
-    Restituisce il numero minimo di tardy e il set di job tardy.
+    Restituisce il numero minimo di tardy e la lista di tutti i set di job tardy ottimi.
     """
-    return best_int, best_sol
+    return best_int, best_solutions
