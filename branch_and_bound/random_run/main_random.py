@@ -81,7 +81,7 @@ def export_to_ampl_dat(jobs, filename="instance.dat"):
             f.write(f"  {i} {job.d}\n")
         f.write(";\n")
 
-    print(f"✅ File '{filename}' esportato per AMPL con H={H}.")
+    print(f"File '{filename}' esportato per AMPL con H={H}.")
 
 
 # ---------- Funzione per eseguire AMPL ----------
