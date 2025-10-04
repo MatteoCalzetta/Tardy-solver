@@ -1,6 +1,7 @@
 import re
 import sys
 import os
+import time
 import subprocess
 from typing import List, Tuple
 
@@ -233,16 +234,22 @@ def main():
         print(job)
 
     root = Node()
+
+    start_appr = time.time
     branch_and_bound(root, jobs, is_on_time_schedulable, select_job)
+    end_appr = time.time
+    processing_time_appr = end_appr-start_appr
 
     best_int, best_sol = get_best_solution()
     print(f"\nBest tardy count: {best_int}")
     print(f"Best tardy set: {sorted(best_sol)}\n")
+    print("Elapsing time for approximation: "+processing_time_appr)
     stats.print_summary(best_int, best_sol)
 
     # ---------------- Risoluzione AMPL ----------------
     export_to_ampl_dat(jobs)
 
+    start_ampl = time.time
     ampl_tardy = run_ampl(
        # 
         model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
@@ -250,6 +257,9 @@ def main():
         data_file="instance.dat",
         solver="gurobi"
     )
+    end_ampl = time.time
+    processing_time_ampl = end_ampl-start_ampl
+    print("Elapsing time for AMPL model: " + processing_time_ampl)
 
     if ampl_tardy is not None:
         print(f"\n Risultato AMPL (Gurobi): {ampl_tardy}")
