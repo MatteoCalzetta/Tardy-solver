@@ -235,9 +235,9 @@ def main():
 
     root = Node()
 
-    start_appr = time.time
+    start_appr = time.time()
     branch_and_bound(root, jobs, is_on_time_schedulable, select_job)
-    end_appr = time.time
+    end_appr = time.time()
     processing_time_appr = end_appr-start_appr
 
     best_int, best_sol = get_best_solution()
@@ -249,7 +249,7 @@ def main():
     # ---------------- Risoluzione AMPL ----------------
     export_to_ampl_dat(jobs)
 
-    start_ampl = time.time
+    start_ampl = time.time()
     ampl_tardy = run_ampl(
        # 
         model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
@@ -257,7 +257,7 @@ def main():
         data_file="instance.dat",
         solver="gurobi"
     )
-    end_ampl = time.time
+    end_ampl = time.time()
     processing_time_ampl = end_ampl-start_ampl
     print("Elapsing time for AMPL model: " + processing_time_ampl)
 
