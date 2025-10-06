@@ -12,13 +12,6 @@ from node import Node
 from bb import branch_and_bound, get_best_solution, stats
 from util import is_on_time_schedulable, select_job
 
-
-
-# r: release date
-# p: processing time
-# d: due date
-
-
 # ----------------- utility I/O sicure -----------------
 def read_int(prompt: str, default: int = None, min_val: int = None) -> int:
     s = input(prompt).strip()
@@ -54,7 +47,6 @@ def read_float(prompt: str, default: float = None, min_val: float = None) -> flo
 # ------------------------------------------------------
 
 # ---------- Funzione per esportare jobs in formato AMPL ----------
-#"/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/instance.dat"
 def export_to_ampl_dat(jobs, filename="instance.dat"):
     n = len(jobs)
     total_p = sum(job.p for job in jobs)
@@ -84,19 +76,12 @@ def export_to_ampl_dat(jobs, filename="instance.dat"):
 
     print(f"File '{filename}' esportato per AMPL con H={H}.")
 
-
 # ---------- Funzione per eseguire AMPL ----------
-#"/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod"
-#"/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/instance.dat"
-
 def run_ampl(model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
-             #
-             # "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/instance.dat"
              data_file="instance.dat",
              solver="gurobi"):
 
     ampl_exe = "/home/giulia/Documenti/AMOD_project/ampl.linux-intel64/ampl"
-    #"/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/run_ampl.run"
     run_file = "run_ampl.run"
 
     ampl_script = f"""
@@ -122,7 +107,6 @@ print "---- Job completati (x[j,t]=1) ----";
 for {{j in JOBS, t in 0..H: x[j,t] > 0.5}} {{
     printf "Job %d termina a t=%d\\n", j, t;
 }}
-
 """
 
     with open(run_file, "w") as f:
@@ -157,7 +141,6 @@ for {{j in JOBS, t in 0..H: x[j,t] > 0.5}} {{
         print("Impossibile leggere il risultato AMPL:")
         print(result.stdout)
         return None
-
 
 # ---------------- MAIN ----------------
 def main():
@@ -233,32 +216,41 @@ def main():
     for job in jobs:
         print(job)
 
-    root = Node()
+    root = Node()   # se necessario: Node(T=set(), S=set(), depth=0)
 
     start_appr = time.time()
     branch_and_bound(root, jobs, is_on_time_schedulable, select_job)
     end_appr = time.time()
-    processing_time_appr = end_appr-start_appr
+    processing_time_appr = end_appr - start_appr
 
-    best_int, best_sol = get_best_solution()
+    best_int, all_T_sets = get_best_solution()
     print(f"\nBest tardy count: {best_int}")
-    print(f"Best tardy set: {sorted(best_sol)}\n")
-    print(f"Elapsing time for approximation: {processing_time_appr:.6f}s")
-    stats.print_summary(best_int, best_sol)
+
+    # Stampa robusta dei set ottimi
+    if not all_T_sets:
+        print("Best tardy set: []")
+    elif len(all_T_sets) == 1:
+        print(f"Best tardy set: {sorted(next(iter(all_T_sets)))}")
+    else:
+        print(f"All optimal tardy sets ({len(all_T_sets)}): {[sorted(s) for s in all_T_sets]}")
+
+    print(f"\nElapsing time for B&B: {processing_time_appr:.6f}s")
+
+    # Per compatibilità con print_summary che si aspetta (forse) un solo set:
+    first_set = all_T_sets[0] if all_T_sets else set()
+    stats.print_summary(best_int, first_set)
 
     # ---------------- Risoluzione AMPL ----------------
     export_to_ampl_dat(jobs)
 
     start_ampl = time.time()
     ampl_tardy = run_ampl(
-       # 
         model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
-       # "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/instance.dat"
         data_file="instance.dat",
         solver="gurobi"
     )
     end_ampl = time.time()
-    processing_time_ampl = end_ampl-start_ampl
+    processing_time_ampl = end_ampl - start_ampl
     print(f"Elapsing time for AMPL model: {processing_time_ampl:.6f}s")
 
     if ampl_tardy is not None:
