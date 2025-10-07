@@ -6,9 +6,14 @@ from job import Job
 from node import Node
 from bb import branch_and_bound, get_best_solution, stats
 from util import is_on_time_schedulable, select_job
-from amplpy import AMPL, add_to_path
+from amplpy import AMPL 
 
-add_to_path(r"/Users/giuliaboccuccia/Documents/AMOD/AMPL")
+
+AMPL_DIR = "/home/giulia/Documenti/AMOD_project/ampl.linux-intel64"
+os.environ["PATH"] += os.pathsep + AMPL_DIR
+os.environ["AMPL_PATH"] = AMPL_DIR
+
+ampl = AMPL()
 
 # === Scegli modalità: "bb" per branch-and-bound, "ampl" per solver AMPL ===#
 #MODE = "ampl"  # cambiare in "bb" se vuoi usare branch-and-bound
@@ -35,8 +40,8 @@ def run_bb():
 def run_ampl():
     print("=== Risoluzione con AMPL ===")
     # --- AMPL ---
-    ampl = AMPL()
-    ampl.read("/Users/giuliaboccuccia/Documents/AMOD/Tardy-solver/ampl_model/model.mod")  # il file del tuo modello AMPL
+   
+    ampl.read("/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod")  # il file del tuo modello AMPL
 
      # --- Estrai dati per AMPL ---
     n = len(jobs)
