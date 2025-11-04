@@ -3,7 +3,6 @@ import sys
 import os
 import time
 import subprocess
-from typing import List, Tuple
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
