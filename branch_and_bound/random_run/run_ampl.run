@@ -21,4 +21,3 @@ print "---- Job completati (x[j,t]=1) ----";
 for {j in JOBS, t in 0..H: x[j,t] > 0.5} {
     printf "Job %d termina a t=%d\n", j, t;
 }
-
