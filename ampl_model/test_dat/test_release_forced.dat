@@ -1,0 +1,18 @@
+param n := 3;
+param H := 20;
+
+
+param r :=
+1 0
+2 0
+3 8;
+
+param p :=
+1 4
+2 4
+3 3;
+
+param d :=
+1 7
+2 8
+3 10;

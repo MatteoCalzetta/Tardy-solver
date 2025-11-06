@@ -76,7 +76,7 @@ def export_to_ampl_dat(jobs, filename="instance.dat"):
     print(f"File '{filename}' esportato per AMPL con H={H}.")
 
 # ---------- Funzione per eseguire AMPL ----------
-def run_ampl(model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
+def run_ampl(model_file="/home/giulia/Documenti/AMOD_project/Tardy_solver/ampl_model/model.mod",
              data_file="instance.dat",
              solver="gurobi"):
 
@@ -199,7 +199,7 @@ def main():
 
     start_ampl = time.time()
     ampl_tardy = run_ampl(
-        model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
+        model_file="/home/giulia/Documenti/AMOD_project/Tardy_solver/ampl_model/model.mod",
         data_file="instance.dat",
         solver="gurobi"
     )
