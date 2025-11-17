@@ -1,0 +1,23 @@
+
+reset;
+option solver gurobi;
+
+model "/home/giulia/Documenti/AMOD_project/Tardy_solver/ampl_model/model.mod";
+data "instance.dat";
+
+solve;
+
+print "===================================";
+print " RISULTATI AMPL";
+print "===================================";
+
+# Mostra stato di risoluzione e valore ottimo
+display sum{j in JOBS} U[j];
+
+print "---- Job tardivi (U[j]) ----";
+display U;
+
+print "---- Job completati (x[j,t]=1) ----";
+for {j in JOBS, t in 0..H: x[j,t] > 0.5} {
+    printf "Job %d termina a t=%d\n", j, t;
+}
