@@ -8,10 +8,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from job_generator import JobGenerator
 from node import Node
-from bb import branch_and_bound, get_best_solution, stats
+from bb import branch_and_bound, get_best_solution, stats, reset
 from util import is_on_time_schedulable, select_job
 
+
 # ----------------- utility I/O sicure -----------------
+
 def read_int(prompt: str, default: int = None, min_val: int = None) -> int:
     s = input(prompt).strip()
     if s == "" and default is not None:
@@ -28,6 +30,7 @@ def read_int(prompt: str, default: int = None, min_val: int = None) -> int:
             return default
         raise
 
+
 def read_float(prompt: str, default: float = None, min_val: float = None) -> float:
     s = input(prompt).strip()
     if s == "" and default is not None:
@@ -43,10 +46,17 @@ def read_float(prompt: str, default: float = None, min_val: float = None) -> flo
             print(f"Input non valido, uso default {default}.")
             return default
         raise
-# ------------------------------------------------------
+
 
 # ---------- Funzione per esportare jobs in formato AMPL ----------
+
 def export_to_ampl_dat(jobs, filename="instance.dat"):
+    """
+    Esporta l'istanza in un file .dat per AMPL.
+
+    JOBS = {1..n}
+    param n, H, r[j], p[j], d[j]
+    """
     n = len(jobs)
     total_p = sum(job.p for job in jobs)
     H = max(job.r for job in jobs) + total_p  # Upper bound corretto
@@ -75,17 +85,21 @@ def export_to_ampl_dat(jobs, filename="instance.dat"):
 
     print(f"File '{filename}' esportato per AMPL con H={H}.")
 
-# ---------- Funzione per eseguire AMPL ----------
-def run_ampl(model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
-             data_file="instance.dat",
-             solver="gurobi"):
 
-    ampl_exe = "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl.linux-intel64/ampl"
+# ---------- Funzione per eseguire AMPL ----------
+
+def run_ampl(model_file: str,
+             data_file: str = "instance.dat",
+             solver: str = "gurobi"):
+
+    # !!! Modifica questo path con il tuo eseguibile AMPL !!!
+    ampl_exe = "/home/giulia/Documenti/AMOD_project/ampl.linux-intel64/ampl"
     run_file = "run_ampl.run"
 
     ampl_script = f"""
 reset;
 option solver {solver};
+
 model "{model_file}";
 data "{data_file}";
 
@@ -140,7 +154,9 @@ for {{j in JOBS, t in 0..H: x[j,t] > 0.5}} {{
         print(result.stdout)
         return None
 
+
 # ---------------- MAIN ----------------
+
 def main():
     print("== Generazione Job ==")
 
@@ -168,6 +184,9 @@ def main():
     for job in jobs:
         print(job)
 
+    # Reset degli stati globali del B&B
+    reset(jobs)
+
     root = Node()  # se necessario: Node(T=set(), S=set(), depth=0)
 
     start_appr = time.time()
@@ -176,7 +195,7 @@ def main():
     processing_time_appr = end_appr - start_appr
 
     best_int, all_T_sets = get_best_solution()
-    print(f"\nBest tardy count: {best_int}")
+    print(f"\nBest tardy count (B&B): {best_int}")
 
     # Stampa robusta dei set ottimi (supporta più soluzioni)
     if not all_T_sets:
@@ -187,7 +206,7 @@ def main():
     else:
         print(f"All optimal tardy sets ({len(all_T_sets)}): {[sorted(list(s)) for s in all_T_sets]}")
 
-    print(f"\nElapsing time for B&B: {processing_time_appr:.6f}s")
+    print(f"\nElapsed time for B&B: {processing_time_appr:.6f}s")
 
     # Per compatibilità con print_summary che si aspetta un solo set:
     first_set = all_T_sets[0] if all_T_sets else set()
@@ -196,19 +215,23 @@ def main():
     # ---------------- Risoluzione AMPL ----------------
     export_to_ampl_dat(jobs)
 
+    # !!! Modifica il path del model_file con il tuo .mod corretto !!!
+    model_file = "/home/giulia/Documenti/AMOD_project/Tardy_solver/ampl_model/model.mod"
+
     start_ampl = time.time()
     ampl_tardy = run_ampl(
-        model_file="/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod",
+        model_file=model_file,
         data_file="instance.dat",
         solver="gurobi"
     )
     end_ampl = time.time()
     processing_time_ampl = end_ampl - start_ampl
-    print(f"Elapsing time for AMPL model: {processing_time_ampl:.6f}s")
+    print(f"Elapsed time for AMPL model: {processing_time_ampl:.6f}s")
 
     if ampl_tardy is not None:
         print(f"\n Risultato AMPL (Gurobi): {ampl_tardy}")
         print(f" Risultato Branch & Bound: {best_int}")
+
 
 if __name__ == "__main__":
     main()

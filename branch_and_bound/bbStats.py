@@ -6,6 +6,7 @@ class BnBStats:
         self.tempo_totale_lb = 0.0
         self.fathom_lb = 0
         self.fathom_leaf = 0
+        self.hit_node_limit = False
 
     def reset(self):
         self.__init__()
