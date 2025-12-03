@@ -11,13 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from node import Node
 from bbStats import BnBStats
 from branch_and_bound.job import Job
-from lower_bound.lower_bound import compute_lb_knapsack
-
-# ==============================
-# Soglie per attivare il knapsack
-# ==============================
-KP_N_MAX = 50       # max numero di job per invocarlo
-KP_H_MAX = 500      # max H = max(d_j) per invocarlo
+from lower_bound.lower_bound import compute_lb_moore  # <-- MOORE come LB
 
 # ==========================
 # Global per B&B
@@ -41,7 +35,7 @@ def heuristic_upper_bound(jobs: List[Job]) -> Tuple[int, Set[int]]:
     Restituisce:
       (numero_tardy, insieme_ID_tardy)
 
-    È solo un'euristica: serve per inizializzare best_int
+    Serve solo per inizializzare best_int
     e avere una soluzione ammissibile da cui partire.
     """
     t = 0
@@ -91,7 +85,7 @@ def branch_and_bound(node: Node,
 
     - Usa:
         * test di fattibilità di S via is_on_time_schedulable (es. EDD preemptive)
-        * Knapsack come lower bound numerico (safe)
+        * Algoritmo di Moore (rilassando le release) come lower bound numerico.
     - NON usa più EDD preemptive come LB numerico.
     """
     global best_int, best_solutions, stats
@@ -118,39 +112,27 @@ def branch_and_bound(node: Node,
             stats.fathom_leaf += 1
         return
 
-    # 3) Calcolo lower bound (SOLO KNAPSACK)
+    # 3) Calcolo lower bound (ALGORITMO DI MOORE sui job rimanenti)
     start = time.time()
 
     if not jobs_remain:
         node.lb = 0
     else:
-        # Bound trivial: nel rilassamento potrebbero teoricamente essere tutti on-time => 0 tardy
-        node.lb = 0
-
-        # Knapsack LB se opportuno
-        H = max((job.d for job in jobs_remain), default=0)
-        if len(jobs_remain) <= KP_N_MAX or H <= KP_H_MAX:
-            lb_kp = compute_lb_knapsack(jobs_remain)
-            node.lb = max(node.lb, lb_kp)
+        # LB = minimo numero di tardy nel problema rilassato
+        # (release "schiacciate" al min r_j, applicando Moore)
+        node.lb = compute_lb_moore(jobs_remain)
 
     stats.tempo_totale_lb += time.time() - start
     stats.chiamate_lb += 1
 
     # 4) Pruning: bound totale
-    #    (# tardy già fissati in T) + (minimo # tardy degli altri nel rilassamento)
+    #    (# tardy già fissati in T) + (minimo # tardy dei rimanenti nel rilassamento)
     total_bound = len(node.T) + node.lb
     if total_bound > best_int:
         stats.fathom_lb += 1
         return
 
-    # 5) Early-stop alla radice quando LB = 0 (tutti on-time possibili nel rilassamento)
-    if node.depth == 0 and node.lb == 0:
-        stats.fathom_leaf += 1
-        best_int = 0
-        best_solutions = [set()]   # tutti on-time
-        return
-
-    # 6) Foglia ammissibile (usa TUTTI i job, non solo i rimanenti)
+    # 5) Foglia ammissibile (usa TUTTI i job, non solo i rimanenti)
     if node.is_feasible_leaf(jobs, is_on_time_schedulable):
         stats.fathom_leaf += 1
         tardy_count = len(node.T)
@@ -164,16 +146,16 @@ def branch_and_bound(node: Node,
                 best_solutions.append(Tcopy)
         return
 
-    # 7) Selezione job per branching: passa solo i rimanenti (F)
+    # 6) Selezione job per branching: passa solo i rimanenti (F)
     k = select_job(node, jobs_remain)
     if k is None:
         return
 
-    # 8) Branch 'on-time'
+    # 7) Branch 'on-time'
     child_ontime = Node(T=node.T.copy(), S=node.S.union({k}), depth=node.depth + 1)
     branch_and_bound(child_ontime, jobs, is_on_time_schedulable, select_job)
 
-    # 9) Branch 'tardy'
+    # 8) Branch 'tardy'
     child_tardy = Node(T=node.T.union({k}), S=node.S.copy(), depth=node.depth + 1)
     branch_and_bound(child_tardy, jobs, is_on_time_schedulable, select_job)
 

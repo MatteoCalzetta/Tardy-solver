@@ -2,7 +2,6 @@
 
 import heapq
 from typing import List
-
 import sys
 import os
 
@@ -40,7 +39,7 @@ def compute_lb_knapsack(jobs: List[Job]) -> int:
 
     for job in jobs:
         w = job.p
-        # iterate backwards to avoid re-using the same job
+        # itera a ritroso per evitare di riusare lo stesso job
         for c in range(H, w - 1, -1):
             dp[c] = max(dp[c], dp[c - w] + 1)
 
@@ -49,7 +48,66 @@ def compute_lb_knapsack(jobs: List[Job]) -> int:
 
 
 # ===========================
-# 2) EDF PREEMPTIVE - UTILITY
+# 2) LOWER BOUND MOORE
+# ===========================
+
+def compute_lb_moore(jobs: List[Job]) -> int:
+    """
+    Lower bound basato sull'algoritmo di Moore-Hodgson per 1 || sum U_j.
+
+    Idea (come suggerito dal professore):
+      - si "dimenticano" le release date vere e proprie
+      - si prende r_min = min r_j tra questi job
+      - si immagina di poter iniziare a tempo r_min
+      - si applica l'algoritmo di Moore su due-date "effettive":
+            d_eff_j = d_j - r_min
+
+    L'algoritmo di Moore, in questo contesto, calcola il numero minimo di job tardy
+    nel problema rilassato SENZA release, quindi fornisce un vero lower bound
+    per il problema con release (anche se spesso poco stringente).
+    """
+    n = len(jobs)
+    if n == 0:
+        return 0
+
+    # 1) Trova il minimo r_j tra questi job
+    r_min = min(job.r for job in jobs)
+
+    # 2) Costruisci lista con due date "shiftate"
+    #    (d_eff_j = d_j - r_min) per simulare l'avvio a tempo r_min
+    jobs_eff = []
+    for job in jobs:
+        d_eff = job.d - r_min
+        jobs_eff.append((d_eff, job.p, job.id))
+
+    # 3) Ordina per due date effettive crescenti
+    jobs_eff.sort(key=lambda x: x[0])
+
+    # 4) Algoritmo di Moore-Hodgson:
+    #    - si costruisce una schedula incrementale
+    #    - si mantiene un max-heap sulle durate p_j
+    #    - se si sfora la due-date, si toglie il job con p_j più grande
+    t = 0
+    max_heap = []  # conterrà tuple (-p_j, job_id)
+    tardy_ids = set()
+
+    for d_eff, p, job_id in jobs_eff:
+        t += p
+        heapq.heappush(max_heap, (-p, job_id))
+
+        if t > d_eff:
+            # si rimuove il job con processing time più grande
+            neg_p_max, jid_max = heapq.heappop(max_heap)
+            p_max = -neg_p_max
+            t -= p_max
+            tardy_ids.add(jid_max)
+
+    # Il numero di job tardy nel problema rilassato è il lower bound
+    return len(tardy_ids)
+
+
+# ===========================
+# 3) EDF PREEMPTIVE - SOLO PER ESPERIMENTI
 # ===========================
 
 def simulate_pedd_tardy_count(jobs: List[Job]) -> int:
@@ -58,55 +116,38 @@ def simulate_pedd_tardy_count(jobs: List[Job]) -> int:
     restituisce il numero di job tardy in QUELLA schedula.
 
     IMPORTANTE:
-      - Questo NON è garantito essere l'ottimo del problema preemptive
-        1 | pmtn, r_j | sum U_j (per quello serve l'algoritmo di Lawler).
-      - Quindi NON deve essere usato come lower bound nel B&B.
-      - Potete usarlo solo per analisi/esperimenti.
-
-    Logica:
-      - ordino i job per release time
-      - tengo una min-heap sui job attivi, chiave = due date
-      - simulo preemption sugli arrivi
+      - NON è garantito che questo sia l'ottimo del problema preemptive
+        1 | pmtn, r_j | sum U_j (per quello servirebbe l'algoritmo di Lawler).
+      - NON deve essere usato come lower bound nel B&B.
+      - Può essere usato solo per analisi / esperimenti.
     """
     if not jobs:
         return 0
 
-    # 1) Sort jobs by release time
     jobs_by_release = sorted(jobs, key=lambda job: job.r)
-
-    # 2) Min-heap per job attivi: [due_date, remaining_time, job_id]
-    active_heap = []
-
-    # 3) Inizializza tempo e indice
+    active_heap = []  # [due_date, remaining_time, job_id]
     t = jobs_by_release[0].r
     idx = 0
     tardy_count = 0
 
-    # 4) Simulazione
     while idx < len(jobs_by_release) or active_heap:
-        # 4a) Rilascia nuovi job
+        # Rilascio job
         while idx < len(jobs_by_release) and jobs_by_release[idx].r <= t:
             job = jobs_by_release[idx]
             heapq.heappush(active_heap, [job.d, job.p, job.id])
             idx += 1
 
-        # 4b) Se non ho job attivi, salto al prossimo rilascio
         if not active_heap:
             t = jobs_by_release[idx].r
             continue
 
-        # 4c) Eseguo il job con due date minima
         due_date, rem_time, job_id = heapq.heappop(active_heap)
-
-        # 4d) Prossimo evento: completamento o prossimo rilascio
         next_release = jobs_by_release[idx].r if idx < len(jobs_by_release) else float('inf')
         run_time = min(rem_time, next_release - t)
 
-        # 4e) Avanza il tempo
         t += run_time
         rem_time -= run_time
 
-        # 4f) Completion check
         if rem_time == 0:
             if t > due_date:
                 tardy_count += 1
