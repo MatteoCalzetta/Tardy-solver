@@ -1,6 +1,6 @@
 # ==========================================================
-#  MODELLO AMPL RILASSATO:
-#       1 | sum U_j
+#  MODELLO AMPL PER:
+#       1 | r_j | sum U_j
 # ==========================================================
 
 # --------------------
@@ -44,12 +44,7 @@ s.t. CompletionDefinition {J in JOBS}:
     C[J] = sum {t in 0..H} t * x[J,t];
 
 
-# (3) Release dates: non si può terminare prima di r_j + p_j
-s.t. ReleaseDate {J in JOBS, t in 0..H: t < r[J] + p[J]}:
-    x[J,t] = 0;
-
-
-# (4) Capacità della macchina:
+# (3) Capacità della macchina:
 #     in ogni istante t può esserci *al massimo un job in lavorazione*
 #
 #     Un job che finisce a time = τ occupa la macchina nei tempi:
@@ -62,7 +57,7 @@ s.t. MachineCapacity {t in 0..H}:
     sum {J in JOBS, tau in max(0, t - p[J] + 1) .. t} x[J, tau]  <= 1;
 
 
-# (5) Vincolo di tardività:
+# (4) Vincolo di tardività:
 #     C_j > d_j  →  U_j = 1
 #     C_j <= d_j →  U_j può essere 0
 #

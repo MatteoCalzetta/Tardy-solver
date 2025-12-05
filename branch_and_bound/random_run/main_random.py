@@ -57,12 +57,16 @@ def export_to_ampl_dat(jobs, filename="instance.dat"):
     JOBS = {1..n}
     param n, H, r[j], p[j], d[j]
     """
+
     n = len(jobs)
     total_p = sum(job.p for job in jobs)
     H = max(job.r for job in jobs) + total_p  # Upper bound corretto
 
     with open(filename, "w") as f:
-        f.write(f"param n := {n};\n")
+        # Definizione set JOBS
+        f.write(f"set JOBS := {' '.join(str(i) for i in range(1, n+1))};\n\n")
+
+         # Parametro H
         f.write(f"param H := {H};\n\n")
 
         # release dates
@@ -87,14 +91,15 @@ def export_to_ampl_dat(jobs, filename="instance.dat"):
 
 
 # ---------- Funzione per eseguire AMPL ----------
+# ---------- AMPL COMPLETO ------------
 
+print("\n=== AMP COMPLETO ===\n")
 def run_ampl(model_file: str,
              data_file: str = "instance.dat",
              solver: str = "gurobi"):
 
-    # !!! Modifica questo path con il tuo eseguibile AMPL !!!
-    ampl_exe = "/home/giulia/Documenti/AMOD_project/ampl.linux-intel64/ampl"
-    run_file = "run_ampl.run"
+    ampl_exe = "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl.linux-intel64/ampl"
+    run_file = "run_ampl_completo.run"
 
     ampl_script = f"""
 reset;
@@ -106,7 +111,7 @@ data "{data_file}";
 solve;
 
 print "===================================";
-print " RISULTATI AMPL";
+print " RISULTATI AMPL COMPLETO ";
 print "===================================";
 
 # Mostra stato di risoluzione e valore ottimo
@@ -153,6 +158,75 @@ for {{j in JOBS, t in 0..H: x[j,t] > 0.5}} {{
         print("Impossibile leggere il risultato AMPL:")
         print(result.stdout)
         return None
+    
+    # ---------- AMPL RILASSATO-----
+
+print("\n=== AMP RILASSATO ===\n")
+def run_ampl_relax(relax_model_file: str,
+             data_file: str = "instance.dat",
+             solver: str = "gurobi"):
+
+    ampl_exe = "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl.linux-intel64/ampl"
+    run_file = "run_ampl_relax.run"
+
+    ampl_script = f"""
+reset;
+option solver {solver};
+
+model "{relax_model_file}";
+data "{data_file}";
+
+solve;
+
+print "===================================";
+print " RISULTATI AMPL RILASSATO ";
+print "===================================";
+
+# Mostra stato di risoluzione e valore ottimo
+display sum{{j in JOBS}} U[j];
+
+print "---- Job tardivi (U[j]) ----";
+display U;
+
+print "---- Job completati (x[j,t]=1) ----";
+for {{j in JOBS, t in 0..H: x[j,t] > 0.5}} {{
+    printf "Job %d termina a t=%d\\n", j, t;
+}}
+"""
+
+    with open(run_file, "w") as f:
+        f.write(ampl_script)
+
+    try:
+        result = subprocess.run(
+            [ampl_exe, run_file],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+    except FileNotFoundError:
+        print(f"Eseguibile AMPL non trovato: {ampl_exe}")
+        return None
+    except subprocess.CalledProcessError as e:
+        print("Errore durante l'esecuzione AMPL:")
+        print(e.stderr)
+        return None
+
+    print("\n===== OUTPUT RILASSATO AMPL =====")
+    print(result.stdout)
+    print("==================================\n")
+
+    # Estrai risultato totale tardy
+    match = re.search(r"sum\{j in JOBS\} U\[j\]\s*=\s*([0-9]+)", result.stdout)
+    if match:
+        tardy_count = int(match.group(1))
+        print(f"Risultato AMPL ({solver}): {tardy_count}")
+        return tardy_count
+    else:
+        print("Impossibile leggere il risultato AMPL:")
+        print(result.stdout)
+        return None
+
 
 
 # ---------------- MAIN ----------------
@@ -212,11 +286,11 @@ def main():
     first_set = all_T_sets[0] if all_T_sets else set()
     stats.print_summary(best_int, first_set)
 
-    # ---------------- Risoluzione AMPL ----------------
+    # ---------------- Risoluzione AMPL COMPLETP -------
     export_to_ampl_dat(jobs)
 
-    # !!! Modifica il path del model_file con il tuo .mod corretto !!!
-    model_file = "/home/giulia/Documenti/AMOD_project/Tardy_solver/ampl_model/model.mod"
+    model_file = "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod"
+    relax_model_file = "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/relax_model.mod"
 
     start_ampl = time.time()
     ampl_tardy = run_ampl(
@@ -228,9 +302,32 @@ def main():
     processing_time_ampl = end_ampl - start_ampl
     print(f"Elapsed time for AMPL model: {processing_time_ampl:.6f}s")
 
+    # -------- ------- Risoluzione AMPL RILASSATO -------
+    start_ampl = time.time()
+    ampl_tardy_relax = run_ampl_relax(
+        relax_model_file=relax_model_file,
+        data_file="instance.dat",
+        solver="gurobi"
+    )
+    end_ampl = time.time()
+    processing_time_ampl_relax = end_ampl - start_ampl
+    print(f"Elapsed time for AMPL model: {processing_time_ampl:.6f}s")
+
     if ampl_tardy is not None:
         print(f"\n Risultato AMPL (Gurobi): {ampl_tardy}")
         print(f" Risultato Branch & Bound: {best_int}")
+    
+    if ampl_tardy_relax is not None:
+        print(f"\n Risultato AMPL (Gurobi): {ampl_tardy_relax}")
+        print(f" Risultato Branch & Bound: {best_int}")
+
+    # --- Dopo le tre run ---
+    print("\n=== CONFRONTO RISULTATI ===")
+    print(f"{'Metodo':<20} {'#Tardy':<10} {'Tempo (s)':<10}")
+    print("-" * 45)
+    print(f"{'Branch & Bound':<20} {best_int:<10} {processing_time_appr:<10.4f}")
+    print(f"{'AMPL Completo':<20} {ampl_tardy:<10} {processing_time_ampl:<10.4f}")
+    print(f"{'AMPL Rilassato':<20} {ampl_tardy_relax:<10} {processing_time_ampl_relax:<10.4f}")
 
 
 if __name__ == "__main__":
