@@ -2,7 +2,7 @@ from amplpy import AMPL
 from pathlib import Path
 
 # Percorso base del progetto
-BASE = Path("/home/giulia/Documenti/AMOD_project/Tardy_solver/ampl_model")
+BASE = Path("/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model")
 MODEL = BASE / "model.mod"
 TESTS = BASE / "test_dat"
 
