@@ -12,6 +12,7 @@ tests = [
     ("test_k_tardy_block.dat", 3),
     ("test_release_forced.dat", 1),
     ("test_symmetry_many_opt.dat", 2),
+    ("moore_strict_lb.dat", 0),
 ]
 
 def run_ampl_test(datfile, expected_opt):
