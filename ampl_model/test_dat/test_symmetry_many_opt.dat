@@ -1,5 +1,5 @@
-param n := 5;
-param H := 20;
+set JOBS := 1 2 3 4 5;
+param H := 5;
 
 
 param r :=
