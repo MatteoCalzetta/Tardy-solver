@@ -72,6 +72,7 @@ s.t. Tardiness {J in JOBS}:
     C[J] <= d[J] + H * U[J];
 
 
+
 # --------------------
 # Obiettivo
 # --------------------

@@ -2,6 +2,7 @@ import re
 import sys
 import os
 import time
+import csv 
 import subprocess
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -172,6 +173,49 @@ display sum{{j in JOBS}} U[j];
     match = re.search(r"sum\{j in JOBS\} U\[j\]\s*=\s*([0-9\.]+)", result.stdout)
     return float(match.group(1)) if match else float("inf")
 
+def append_results_to_csv(
+    filename,
+    n_jobs,
+    r_range,
+    p_range,
+    tightness,
+    bb_tardy,
+    bb_time,
+    ampl_tardy,
+    ampl_time,
+    relax_tardy,
+    relax_time
+):
+    import csv
+    import os
+
+    file_exists = os.path.isfile(filename)
+
+    with open(filename, mode="a", newline="") as f:
+        writer = csv.writer(f)
+
+        if not file_exists:
+            writer.writerow([
+                "n_jobs",
+                "r_min", "r_max",
+                "p_min", "p_max",
+                "tightness",
+                "BB_tardy", "BB_time",
+                "AMPL_tardy", "AMPL_time",
+                "RELAX_tardy", "RELAX_time"
+            ])
+
+        writer.writerow([
+            n_jobs,
+            r_range[0], r_range[1],
+            p_range[0], p_range[1],
+            tightness,
+            bb_tardy, bb_time,
+            ampl_tardy, ampl_time,
+            relax_tardy, relax_time
+        ])
+
+
 # ---------- MAIN ----------
 def main():
     print("== Generazione Job ==")
@@ -237,6 +281,30 @@ def main():
     print(f"{'Branch & Bound':<20} {best_int:<10} {processing_time_appr:<10.4f}")
     print(f"{'AMPL Completo':<20} {ampl_tardy:<10} {processing_time_ampl:<10.4f}")
     print(f"{'AMPL Rilassato':<20} {ampl_tardy_relax:<10} {processing_time_ampl_relax:<10.4f}")
+
+
+    csv_file = os.path.join(
+        os.path.dirname(__file__),
+        "results_experiments.csv"
+    )
+
+    # ---------------- Salvataggio CSV ----------------
+    append_results_to_csv(
+        filename=csv_file,
+        n_jobs=n,
+        r_range=(r_min, r_max),
+        p_range=(p_min, p_max),
+        tightness=tightness,
+        bb_tardy=best_int,
+        bb_time=processing_time_appr,
+        ampl_tardy=ampl_tardy,
+        ampl_time=processing_time_ampl,
+        relax_tardy=ampl_tardy_relax,
+        relax_time=processing_time_ampl_relax
+    )
+
+    print(f"\nRisultati salvati in {csv_file}")
+
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,7 @@ data "instance.dat";
 solve;
 
 print "===================================";
-print " RISULTATI AMPL COMPLETO ";
+print " RISULTATI AMPL";
 print "===================================";
 
 # Mostra stato di risoluzione e valore ottimo

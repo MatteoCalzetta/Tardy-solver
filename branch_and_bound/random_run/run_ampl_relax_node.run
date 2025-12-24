@@ -1,0 +1,11 @@
+
+reset;
+option solver gurobi;
+model "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/relax_model.mod";
+data "instance.dat";
+option relax_integrality 1;
+# ===== FISSAGGI NODO =====
+
+# ========================
+solve;
+display sum{j in JOBS} U[j];

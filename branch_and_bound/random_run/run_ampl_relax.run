@@ -2,13 +2,19 @@
 reset;
 option solver gurobi;
 
-model "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod";
+model "relax_model.mod";
 data "instance.dat";
+
+# >>> FIX DEL NODO B&B <<<
+fix x[j,t] := 1;
+fix x[j,t2] := 0;
+fix U[j] := 0;
 
 solve;
 
+
 print "===================================";
-print " RISULTATI AMPL COMPLETO ";
+print " RISULTATI AMPL RILASSATO ";
 print "===================================";
 
 # Mostra stato di risoluzione e valore ottimo

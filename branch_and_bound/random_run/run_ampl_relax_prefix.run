@@ -1,0 +1,21 @@
+
+reset;
+option solver gurobi;
+
+model "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/relax_model.mod";
+data "instance.dat";
+
+option relax_integrality 1;
+
+# ===== PREFIX FIX =====
+fix C[1] := 14;
+fix U[1] := 0;
+
+    s.t. PrefixBlock {j in JOBS, tt in 0..13}:
+        x[j,tt] = 0;
+    
+# =====================
+
+solve;
+
+display sum{j in JOBS} U[j];

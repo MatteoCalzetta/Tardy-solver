@@ -1,0 +1,7 @@
+
+reset;
+option solver gurobi;
+model "/home/giulia/Documenti/AMOD_project/Tardy-solver/ampl_model/model.mod";
+data "/home/giulia/Documenti/AMOD_project/Tardy-solver/instance.dat";
+solve;
+display sum{j in JOBS} U[j];
